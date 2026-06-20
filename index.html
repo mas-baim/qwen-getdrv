@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Mas Baim Gallery</title>
+  <title>Baim Photo Gallery</title>
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -197,16 +197,21 @@
     }
 
     /* ═══════════════════════════════════════════════════════════ */
-    /* SPINNER - HANYA UNTUK GALLERY (TENGAH LAYAR)              */
+    /* FULLSCREEN SPINNER OVERLAY - TENGAH LAYAR                 */
     /* ═══════════════════════════════════════════════════════════ */
-    .gallery-spinner-wrapper {
-      display: flex;
+    .fullscreen-spinner {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.75);
+      z-index: 500;
       align-items: center;
       justify-content: center;
-      width: 100%;
-      min-height: 400px;
-      color: var(--text-secondary);
-      font-size: 14px;
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+    }
+    .fullscreen-spinner.active {
+      display: flex;
     }
 
     .spinner {
@@ -245,6 +250,16 @@
       color: var(--text-primary);
       padding-bottom: 10px;
       border-bottom: 1px solid var(--border);
+    }
+
+    /* Empty state saat gallery belum ada konten */
+    .gallery-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+      color: var(--text-secondary);
+      font-size: 14px;
     }
 
     .gallery {
@@ -419,7 +434,7 @@
       .lightbox-prev { left: 10px; }
       .lightbox-next { right: 10px; }
       .lightbox-close { top: 10px; right: 10px; width: 38px; height: 38px; }
-      .gallery-spinner-wrapper { min-height: 300px; }
+      .gallery-empty { min-height: 300px; }
     }
 
     @media (max-width: 480px) {
@@ -431,11 +446,16 @@
       .lightbox-prev { left: 8px; }
       .lightbox-next { right: 8px; }
       .lightbox-close { width: 34px; height: 34px; }
-      .gallery-spinner-wrapper { min-height: 250px; }
+      .gallery-empty { min-height: 250px; }
     }
   </style>
 </head>
 <body>
+
+<!-- ✨ FULLSCREEN SPINNER OVERLAY - TENGAH LAYAR -->
+<div class="fullscreen-spinner" id="fullscreenSpinner">
+  <div class="spinner"></div>
+</div>
 
 <div class="app-window">
 
@@ -471,20 +491,14 @@
         </svg>
       </div>
 
-      <!-- ✨ SIDEBAR NAV - TANPA SPINNER AWAL -->
       <ul class="sidebar-nav" id="sidebarNav">
-        <!-- Kosong - akan diisi oleh JavaScript -->
+        <!-- Diisi oleh JavaScript -->
       </ul>
     </aside>
 
     <main class="main">
       <div class="current-folder" id="currentFolder">Loading...</div>
-      <!-- ✨ SPINNER DI TENGAH AREA CONTENT -->
-      <div class="gallery" id="gallery">
-        <div class="gallery-spinner-wrapper">
-          <div class="spinner"></div>
-        </div>
-      </div>
+      <div class="gallery" id="gallery"></div>
     </main>
   </div>
 
@@ -518,7 +532,7 @@
   // ═══════════════════════════════════════════════════════════
   const EDGE_FUNCTION_URL = 'https://aoemqjuvwnwfhpdeylan.supabase.co/functions/v1/get-drive-data';
 
-  let allFolders = {}; 
+  let allFolders = {};
   let currentImages = [];
   let currentYear = null;
   let currentMonth = null;
@@ -544,14 +558,14 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // HELPER: TAMPILKAN SPINNER DI GALLERY
+  // HELPER: SHOW / HIDE FULLSCREEN SPINNER
   // ═══════════════════════════════════════════════════════════
-  function showGallerySpinner() {
-    document.getElementById('gallery').innerHTML = `
-      <div class="gallery-spinner-wrapper">
-        <div class="spinner"></div>
-      </div>
-    `;
+  function showSpinner() {
+    document.getElementById('fullscreenSpinner').classList.add('active');
+  }
+
+  function hideSpinner() {
+    document.getElementById('fullscreenSpinner').classList.remove('active');
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -577,16 +591,19 @@
   sidebarOverlay.addEventListener('click', closeSidebar);
 
   // ═══════════════════════════════════════════════════════════
-  // BUILD SIDEBAR NAVIGATION (TANPA SPINNER)
+  // BUILD SIDEBAR NAVIGATION
   // ═══════════════════════════════════════════════════════════
   async function buildSidebarNav() {
     const sidebarNav = document.getElementById('sidebarNav');
-    
+
+    showSpinner();
+
     try {
       const yearFolders = await callEdgeFunction('years');
-      
+
       if (yearFolders.length === 0) {
         sidebarNav.innerHTML = '<li style="padding: 20px; color: var(--text-secondary);">Tidak ada folder ditemukan</li>';
+        hideSpinner();
         return;
       }
 
@@ -601,12 +618,12 @@
 
       const sortedYears = Object.keys(allFolders).sort().reverse();
       let html = '';
-      
+
       sortedYears.forEach((year, index) => {
         const months = Object.keys(allFolders[year]).sort().reverse();
         const isFirst = index === 0 ? 'active expanded' : '';
         const isOpen = index === 0 ? 'open' : '';
-        
+
         html += `
           <li class="parent-item ${isFirst}" data-year="${year}" onclick="toggleYearFolder('${year}')">
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -619,9 +636,9 @@
           </li>
           <ul class="submenu ${isOpen}" id="submenu-${year}">
             ${months.map((month, mIndex) => `
-              <li class="${index === 0 && mIndex === 0 ? 'active' : ''}" 
-                  data-year="${year}" 
-                  data-month="${month}" 
+              <li class="${index === 0 && mIndex === 0 ? 'active' : ''}"
+                  data-year="${year}"
+                  data-month="${month}"
                   onclick="selectMonth('${year}', '${month}', this)">
                 ${month}
               </li>
@@ -637,11 +654,15 @@
         const latestMonth = Object.keys(allFolders[latestYear]).sort().reverse()[0];
         if (latestMonth) {
           await loadFolder(latestYear, latestMonth);
+          return; // hideSpinner sudah dipanggil di dalam loadFolder
         }
       }
 
+      hideSpinner();
+
     } catch (error) {
       console.error('Error buildSidebarNav:', error);
+      hideSpinner();
       sidebarNav.innerHTML = `<li class="error-message">Gagal memuat folder.<br><small>${error.message}</small></li>`;
     }
   }
@@ -661,25 +682,27 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // LOAD FOLDER (GALLERY) - SPINNER DI TENGAH
+  // LOAD FOLDER (GALLERY)
   // ═══════════════════════════════════════════════════════════
   async function loadFolder(year, month) {
     currentYear = year;
     currentMonth = month;
     const folderId = allFolders[year][month];
-    
+
     document.getElementById('currentFolder').textContent = `${year} / ${month}`;
-    
-    // ✨ Tampilkan spinner di tengah
-    showGallerySpinner();
-    
+    document.getElementById('gallery').innerHTML = '';
+
+    showSpinner();
+
     try {
       const images = await callEdgeFunction('images', folderId);
       currentImages = images;
-      
+
+      hideSpinner();
+
       if (images.length === 0) {
         document.getElementById('gallery').innerHTML = `
-          <div class="gallery-spinner-wrapper">
+          <div class="gallery-empty">
             Tidak ada foto di folder ini
           </div>
         `;
@@ -689,11 +712,11 @@
       let html = '';
       images.forEach((img, index) => {
         const thumbUrl = `https://drive.google.com/thumbnail?id=${img.id}&sz=w600`;
-        
+
         html += `
           <div class="gallery-item" onclick="openLightbox(${index})">
-            <img 
-              src="${thumbUrl}" 
+            <img
+              src="${thumbUrl}"
               alt="${img.name}"
               referrerpolicy="no-referrer"
               loading="lazy"
@@ -709,13 +732,14 @@
           </div>
         `;
       });
-      
+
       document.getElementById('gallery').innerHTML = html;
-      
+
     } catch (error) {
       console.error('Error loading folder:', error);
+      hideSpinner();
       document.getElementById('gallery').innerHTML = `
-        <div class="gallery-spinner-wrapper">
+        <div class="gallery-empty">
           <div class="error-message">
             Gagal memuat gambar.<br>
             <small>${error.message}</small>
@@ -734,7 +758,7 @@
   const lightboxPrev = document.getElementById('lightboxPrev');
   const lightboxNext = document.getElementById('lightboxNext');
   const lightboxCounter = document.getElementById('lightboxCounter');
-  
+
   let currentIndex = 0;
 
   function openLightbox(index) {
@@ -752,7 +776,7 @@
   function updateLightboxImage() {
     const img = currentImages[currentIndex];
     const fullUrl = `https://drive.google.com/thumbnail?id=${img.id}&sz=w1600`;
-    
+
     lightboxImg.src = fullUrl;
     lightboxImg.alt = img.name;
     lightboxImg.setAttribute('referrerpolicy', 'no-referrer');
@@ -775,7 +799,7 @@
     e.stopPropagation();
     closeLightbox();
   });
-  
+
   lightboxNext.addEventListener('click', nextImage);
   lightboxPrev.addEventListener('click', prevImage);
 
@@ -804,13 +828,13 @@
         </li>
       `;
       document.getElementById('gallery').innerHTML = `
-        <div class="gallery-spinner-wrapper">
+        <div class="gallery-empty">
           <div class="error-message">Silakan konfigurasi Edge Function URL terlebih dahulu.</div>
         </div>
       `;
       return;
     }
-    
+
     buildSidebarNav();
   });
 </script>
