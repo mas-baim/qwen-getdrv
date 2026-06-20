@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Baim Photo Gallery</title>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #1a73e8;
+      --blue-dark: #1557b0;
+      --sidebar-bg: #f8f9fa;
+      --border: #e0e0e0;
+      --text-primary: #202124;
+      --text-secondary: #5f6368;
+      --hover-bg: #e8f0fe;
+      --active-bg: #d2e3fc;
+      --white: #ffffff;
+      --shadow: 0 2px 10px rgba(0,0,0,0.12);
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #e8eaf0;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .app-window {
+      width: 100%;
+      max-width: 960px;
+      background: var(--white);
+      border-radius: 18px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.16);
+      overflow: hidden;
+    }
+
+    .header {
+      background: var(--blue);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .traffic-lights {
+      display: flex;
+      gap: 6px;
+    }
+    .traffic-lights span {
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      display: block;
+    }
+    .tl-red   { background: #ff5f57; }
+    .tl-yellow{ background: #febc2e; }
+    .tl-green { background: #28c840; }
+
+    .header-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: 0.3px;
+    }
+
+    .hamburger-btn {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      margin-left: 10px;
+    }
+    .hamburger-btn span {
+      display: block;
+      width: 22px;
+      height: 2px;
+      background: var(--white);
+      margin: 5px 0;
+      border-radius: 2px;
+      transition: all 0.3s;
+    }
+    .hamburger-btn.active span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+    .hamburger-btn.active span:nth-child(2) {
+      opacity: 0;
+    }
+    .hamburger-btn.active span:nth-child(3) {
+      transform: rotate(-45deg) translate(5px, -5px);
+    }
+
+    .body {
+      display: flex;
+      min-height: 600px;
+      position: relative;
+    }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 99;
+    }
+    .sidebar-overlay.active {
+      display: block;
+    }
+
+    .sidebar {
+      width: 230px;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 20px 0;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-logo {
+      padding: 0 20px 16px;
+    }
+    .sidebar-logo svg {
+      width: 36px; height: 36px;
+    }
+
+    .sidebar-nav {
+      list-style: none;
+    }
+
+    .sidebar-nav li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 0 24px 24px 0;
+      margin-right: 12px;
+      transition: background 0.15s;
+    }
+    .sidebar-nav li:hover { background: var(--hover-bg); color: var(--blue); }
+    .sidebar-nav li.active {
+      background: var(--active-bg);
+      color: var(--blue);
+      font-weight: 500;
+    }
+    .sidebar-nav li svg {
+      flex-shrink: 0;
+      color: inherit;
+    }
+
+    .sidebar-nav .submenu {
+      list-style: none;
+      padding-left: 20px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    .sidebar-nav .submenu.open {
+      max-height: 500px;
+    }
+    .sidebar-nav .submenu li {
+      padding: 7px 20px;
+      font-size: 13px;
+      margin-right: 0;
+      border-radius: 0;
+    }
+    .sidebar-nav .submenu li.active {
+      background: var(--active-bg);
+      color: var(--blue);
+      font-weight: 500;
+      border-radius: 0 24px 24px 0;
+    }
+    .sidebar-nav .parent-item {
+      font-weight: 500;
+    }
+    .sidebar-nav .parent-item svg.chevron {
+      transition: transform 0.3s;
+      margin-left: auto;
+    }
+    .sidebar-nav .parent-item.expanded svg.chevron {
+      transform: rotate(90deg);
+    }
+
+    /* ═══════════════════════════════════════════════════════════ */
+    /* SPINNER - HANYA UNTUK GALLERY (TENGAH LAYAR)              */
+    /* ═══════════════════════════════════════════════════════════ */
+    .gallery-spinner-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 400px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      background: #fce8e6;
+      color: #c5221f;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 20px;
+    }
+
+    .main {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    .current-folder {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text-primary);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .gallery-item {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      aspect-ratio: 1 / 1;
+      cursor: pointer;
+      background: #ddd;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .gallery-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.16);
+    }
+
+    .gallery-item img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .eye-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(30, 50, 90, 0.45);
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 12px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .gallery-item:hover .eye-overlay,
+    .gallery-item.has-overlay .eye-overlay {
+      opacity: 1;
+    }
+
+    .eye-icon {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.18);
+      border: 2px solid rgba(255,255,255,0.7);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .eye-icon svg {
+      color: white;
+    }
+
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .lightbox.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    .lightbox-content {
+      position: relative;
+      max-width: 90vw;
+      max-height: 90vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: zoomIn 0.3s ease;
+    }
+
+    @keyframes zoomIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .lightbox-img {
+      max-width: 100%;
+      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+      object-fit: contain;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 44px;
+      height: 44px;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, transform 0.2s;
+      z-index: 1001;
+    }
+    .lightbox-close:hover {
+      background: rgba(255,255,255,0.25);
+      transform: rotate(90deg);
+    }
+    .lightbox-close svg { color: white; }
+
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 50px;
+      height: 50px;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      z-index: 1001;
+    }
+    .lightbox-nav:hover { background: rgba(255,255,255,0.25); }
+    .lightbox-nav svg { color: white; }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+
+    .lightbox-counter {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 14px;
+      background: rgba(0,0,0,0.6);
+      padding: 8px 16px;
+      border-radius: 20px;
+      z-index: 1001;
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 0; }
+      .app-window { border-radius: 0; max-width: 100%; }
+      .hamburger-btn { display: block; }
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 100;
+        transform: translateX(-100%);
+        box-shadow: 4px 0 20px rgba(0,0,0,0.2);
+      }
+      .sidebar.active { transform: translateX(0); }
+      .gallery { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      .header-title { font-size: 16px; }
+      .main { padding: 16px; }
+      .lightbox-nav { width: 40px; height: 40px; }
+      .lightbox-prev { left: 10px; }
+      .lightbox-next { right: 10px; }
+      .lightbox-close { top: 10px; right: 10px; width: 38px; height: 38px; }
+      .gallery-spinner-wrapper { min-height: 300px; }
+    }
+
+    @media (max-width: 480px) {
+      .gallery { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .gallery-item { border-radius: 8px; }
+      .eye-icon { width: 28px; height: 28px; }
+      .eye-icon svg { width: 14px; height: 14px; }
+      .lightbox-nav { width: 36px; height: 36px; }
+      .lightbox-prev { left: 8px; }
+      .lightbox-next { right: 8px; }
+      .lightbox-close { width: 34px; height: 34px; }
+      .gallery-spinner-wrapper { min-height: 250px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-window">
+
+  <div class="header">
+    <div class="header-left">
+      <button class="hamburger-btn" id="hamburgerBtn">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="traffic-lights">
+        <span class="tl-red"></span>
+        <span class="tl-yellow"></span>
+        <span class="tl-green"></span>
+      </div>
+      <span class="header-title">Baim Photo Gallery</span>
+    </div>
+  </div>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="body">
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+          <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+          <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+          <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+          <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+          <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+          <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+        </svg>
+      </div>
+
+      <!-- ✨ SIDEBAR NAV - TANPA SPINNER AWAL -->
+      <ul class="sidebar-nav" id="sidebarNav">
+        <!-- Kosong - akan diisi oleh JavaScript -->
+      </ul>
+    </aside>
+
+    <main class="main">
+      <div class="current-folder" id="currentFolder">Loading...</div>
+      <!-- ✨ SPINNER DI TENGAH AREA CONTENT -->
+      <div class="gallery" id="gallery">
+        <div class="gallery-spinner-wrapper">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">
+    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path d="M18 6L6 18M6 6l12 12"/>
+    </svg>
+  </button>
+  <button class="lightbox-nav lightbox-prev" id="lightboxPrev">
+    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+  </button>
+  <div class="lightbox-content">
+    <img src="" alt="" class="lightbox-img" id="lightboxImg"/>
+  </div>
+  <button class="lightbox-nav lightbox-next" id="lightboxNext">
+    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+  <div class="lightbox-counter" id="lightboxCounter">1 / 9</div>
+</div>
+
+<script>
+  // ═══════════════════════════════════════════════════════════
+  // KONFIGURASI
+  // ═══════════════════════════════════════════════════════════
+  const EDGE_FUNCTION_URL = 'https://aoemqjuvwnwfhpdeylan.supabase.co/functions/v1/get-drive-data';
+
+  let allFolders = {}; 
+  let currentImages = [];
+  let currentYear = null;
+  let currentMonth = null;
+
+  // ═══════════════════════════════════════════════════════════
+  // HELPER: PANGGIL EDGE FUNCTION
+  // ═══════════════════════════════════════════════════════════
+  async function callEdgeFunction(action, folderId = null) {
+    let url = `${EDGE_FUNCTION_URL}?action=${action}`;
+    if (folderId) url += `&folderId=${encodeURIComponent(folderId)}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Edge Function error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Unknown error from Edge Function');
+    }
+
+    return result.data;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HELPER: TAMPILKAN SPINNER DI GALLERY
+  // ═══════════════════════════════════════════════════════════
+  function showGallerySpinner() {
+    document.getElementById('gallery').innerHTML = `
+      <div class="gallery-spinner-wrapper">
+        <div class="spinner"></div>
+      </div>
+    `;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HAMBURGER MENU
+  // ═══════════════════════════════════════════════════════════
+  const hamburgerBtn = document.getElementById('hamburgerBtn');
+  const sidebar = document.getElementById('sidebar');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+  function toggleSidebar() {
+    hamburgerBtn.classList.toggle('active');
+    sidebar.classList.toggle('active');
+    sidebarOverlay.classList.toggle('active');
+  }
+
+  function closeSidebar() {
+    hamburgerBtn.classList.remove('active');
+    sidebar.classList.remove('active');
+    sidebarOverlay.classList.remove('active');
+  }
+
+  hamburgerBtn.addEventListener('click', toggleSidebar);
+  sidebarOverlay.addEventListener('click', closeSidebar);
+
+  // ═══════════════════════════════════════════════════════════
+  // BUILD SIDEBAR NAVIGATION (TANPA SPINNER)
+  // ═══════════════════════════════════════════════════════════
+  async function buildSidebarNav() {
+    const sidebarNav = document.getElementById('sidebarNav');
+    
+    try {
+      const yearFolders = await callEdgeFunction('years');
+      
+      if (yearFolders.length === 0) {
+        sidebarNav.innerHTML = '<li style="padding: 20px; color: var(--text-secondary);">Tidak ada folder ditemukan</li>';
+        return;
+      }
+
+      for (const yearFolder of yearFolders) {
+        const year = yearFolder.name;
+        allFolders[year] = {};
+        const monthFolders = await callEdgeFunction('months', yearFolder.id);
+        monthFolders.forEach(monthFolder => {
+          allFolders[year][monthFolder.name] = monthFolder.id;
+        });
+      }
+
+      const sortedYears = Object.keys(allFolders).sort().reverse();
+      let html = '';
+      
+      sortedYears.forEach((year, index) => {
+        const months = Object.keys(allFolders[year]).sort().reverse();
+        const isFirst = index === 0 ? 'active expanded' : '';
+        const isOpen = index === 0 ? 'open' : '';
+        
+        html += `
+          <li class="parent-item ${isFirst}" data-year="${year}" onclick="toggleYearFolder('${year}')">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            ${year}
+            <svg class="chevron" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </li>
+          <ul class="submenu ${isOpen}" id="submenu-${year}">
+            ${months.map((month, mIndex) => `
+              <li class="${index === 0 && mIndex === 0 ? 'active' : ''}" 
+                  data-year="${year}" 
+                  data-month="${month}" 
+                  onclick="selectMonth('${year}', '${month}', this)">
+                ${month}
+              </li>
+            `).join('')}
+          </ul>
+        `;
+      });
+
+      sidebarNav.innerHTML = html;
+
+      if (sortedYears.length > 0) {
+        const latestYear = sortedYears[0];
+        const latestMonth = Object.keys(allFolders[latestYear]).sort().reverse()[0];
+        if (latestMonth) {
+          await loadFolder(latestYear, latestMonth);
+        }
+      }
+
+    } catch (error) {
+      console.error('Error buildSidebarNav:', error);
+      sidebarNav.innerHTML = `<li class="error-message">Gagal memuat folder.<br><small>${error.message}</small></li>`;
+    }
+  }
+
+  function toggleYearFolder(year) {
+    const submenu = document.getElementById(`submenu-${year}`);
+    const parentItem = document.querySelector(`[data-year="${year}"].parent-item`);
+    submenu.classList.toggle('open');
+    parentItem.classList.toggle('expanded');
+  }
+
+  async function selectMonth(year, month, element) {
+    document.querySelectorAll('.sidebar-nav li').forEach(li => li.classList.remove('active'));
+    element.classList.add('active');
+    await loadFolder(year, month);
+    if (window.innerWidth <= 768) closeSidebar();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOAD FOLDER (GALLERY) - SPINNER DI TENGAH
+  // ═══════════════════════════════════════════════════════════
+  async function loadFolder(year, month) {
+    currentYear = year;
+    currentMonth = month;
+    const folderId = allFolders[year][month];
+    
+    document.getElementById('currentFolder').textContent = `${year} / ${month}`;
+    
+    // ✨ Tampilkan spinner di tengah
+    showGallerySpinner();
+    
+    try {
+      const images = await callEdgeFunction('images', folderId);
+      currentImages = images;
+      
+      if (images.length === 0) {
+        document.getElementById('gallery').innerHTML = `
+          <div class="gallery-spinner-wrapper">
+            Tidak ada foto di folder ini
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      images.forEach((img, index) => {
+        const thumbUrl = `https://drive.google.com/thumbnail?id=${img.id}&sz=w600`;
+        
+        html += `
+          <div class="gallery-item" onclick="openLightbox(${index})">
+            <img 
+              src="${thumbUrl}" 
+              alt="${img.name}"
+              referrerpolicy="no-referrer"
+              loading="lazy"
+            />
+            <div class="eye-overlay">
+              <div class="eye-icon">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      document.getElementById('gallery').innerHTML = html;
+      
+    } catch (error) {
+      console.error('Error loading folder:', error);
+      document.getElementById('gallery').innerHTML = `
+        <div class="gallery-spinner-wrapper">
+          <div class="error-message">
+            Gagal memuat gambar.<br>
+            <small>${error.message}</small>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LIGHTBOX FUNCTIONALITY
+  // ═══════════════════════════════════════════════════════════
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightboxImg');
+  const lightboxClose = document.getElementById('lightboxClose');
+  const lightboxPrev = document.getElementById('lightboxPrev');
+  const lightboxNext = document.getElementById('lightboxNext');
+  const lightboxCounter = document.getElementById('lightboxCounter');
+  
+  let currentIndex = 0;
+
+  function openLightbox(index) {
+    currentIndex = index;
+    updateLightboxImage();
+    lightbox.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  function updateLightboxImage() {
+    const img = currentImages[currentIndex];
+    const fullUrl = `https://drive.google.com/thumbnail?id=${img.id}&sz=w1600`;
+    
+    lightboxImg.src = fullUrl;
+    lightboxImg.alt = img.name;
+    lightboxImg.setAttribute('referrerpolicy', 'no-referrer');
+    lightboxCounter.textContent = `${currentIndex + 1} / ${currentImages.length}`;
+  }
+
+  function nextImage(e) {
+    if (e) e.stopPropagation();
+    currentIndex = (currentIndex + 1) % currentImages.length;
+    updateLightboxImage();
+  }
+
+  function prevImage(e) {
+    if (e) e.stopPropagation();
+    currentIndex = (currentIndex - 1 + currentImages.length) % currentImages.length;
+    updateLightboxImage();
+  }
+
+  lightboxClose.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeLightbox();
+  });
+  
+  lightboxNext.addEventListener('click', nextImage);
+  lightboxPrev.addEventListener('click', prevImage);
+
+  lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox || e.target.classList.contains('lightbox-content')) {
+      closeLightbox();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!lightbox.classList.contains('active')) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowRight') nextImage();
+    else if (e.key === 'ArrowLeft') prevImage();
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // INISIALISASI
+  // ═══════════════════════════════════════════════════════════
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!EDGE_FUNCTION_URL || EDGE_FUNCTION_URL.includes('YOUR_PROJECT_REF')) {
+      document.getElementById('sidebarNav').innerHTML = `
+        <li class="error-message">
+          ⚠️ EDGE_FUNCTION_URL belum dikonfigurasi!<br>
+          <small>Edit variabel EDGE_FUNCTION_URL di script</small>
+        </li>
+      `;
+      document.getElementById('gallery').innerHTML = `
+        <div class="gallery-spinner-wrapper">
+          <div class="error-message">Silakan konfigurasi Edge Function URL terlebih dahulu.</div>
+        </div>
+      `;
+      return;
+    }
+    
+    buildSidebarNav();
+  });
+</script>
+</body>
+</html>
